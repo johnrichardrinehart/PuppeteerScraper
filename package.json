@@ -1,0 +1,15 @@
+{
+  "name": "puppeteer_api",
+  "scripts": {
+    "start-promise": "node ./index_promise.js",
+    "start-try-catch": "node ./index_try_catch.js"
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "puppeteer": "^7.1.0",
+    "puppeteer-extra": "^3.1.17",
+    "puppeteer-extra-plugin-stealth": "^2.7.5",
+    "puppeteer-extra-plugin-user-data-dir": "^2.2.11",
+    "puppeteer-extra-plugin-user-preferences": "^2.2.11"
+  }
+}
