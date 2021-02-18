@@ -17,8 +17,8 @@ else
 fi
 
 # see which processes are running with:
-# > yarn pm2 ls
+# > yarn dlx pm2 ls
 # see the log of process 0 with:
-# > yarn pm2 logs 0
+# > yarn dlx pm2 logs 0
 # see the monitor (super cool) with:
-# > yarn pm2 monit
+# > yarn dlx pm2 monit
