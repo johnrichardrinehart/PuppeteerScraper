@@ -26,8 +26,6 @@ if (process.argv.length > 2 ) {
 
 app.get('/content', async (req, res) => {
 
-	await init()
-
 	console.log(`received a request for ${req.query.url}`);
 
 	// initialize "globals"
@@ -36,16 +34,16 @@ app.get('/content', async (req, res) => {
 
 	try {
 		page = await browser.newPage();
-		res = await page.goto(req.query.url, {
+		out = await page.goto(req.query.url, {
 			timeout: 10000, // 10s
 		});
 
 		// 200-like status
-		if (!res.ok()) {
-			throw `errored response: ${req.query.url} returned ${res.status()}, ${res.statusText()}`
+		if (!out.ok()) {
+			throw `errored response: ${req.query.url} returned ${out.status()}, ${out.statusText()}`
 		}
 
-		const buf = await res.buffer()
+		const buf = await out.buffer()
 
 		// TODO: remove, TESTING
 		if (is_log_memory) {
@@ -72,7 +70,6 @@ app.get('/content', async (req, res) => {
 
 app.listen(8000, async () => {
 	await init() // initialize the browser
-	console.log(`listening on port 8000 (${process.pid})`)
 
 	// TODO: remove, TESTING
 	if (is_log_memory) {
@@ -80,6 +77,8 @@ app.listen(8000, async () => {
 	} else {
 		console.log("not logging memory");
 	}
+
+	console.log(`listening on port 8000 (${process.pid})`)
 
 	// Here we send the ready signal to PM2
 	if (process.send) {

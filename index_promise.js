@@ -77,14 +77,14 @@ app.get('/content', async (req, res) => {
 
 app.listen(8000, async () => {
 	await init() // initialize the browser
-	console.log(`listening on port 8000 (${process.pid})`)
-
 	// TODO: remove, TESTING
 	if (is_log_memory) {
 		console.log("logging memory");
 	} else {
 		console.log("not logging memory");
 	}
+
+	console.log(`listening on port 8000 (${process.pid})`)
 
 	// Here we send the ready signal to PM2
 	if (process.send) {
