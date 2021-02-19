@@ -48,14 +48,15 @@ app.get('/content', async (req, res) => {
 		})
 		.then(page => page.goto(req.query.url,
 			{
-				timeout: 10000 // 10s
+				timeout: 120000 // 120s
 			}
 		))
 		.then(response => {
 			p_res = response
 
 			if (req.query.cookies) {
-				// payload.cookies = res.header["set-cookie"] 
+				console.log(`cookies requested for ${req.query.url}: ${JSON.stringify(response.headers())}`);
+				payload.cookies = response.headers()["set-cookie"] 
 			}
 
 			payload.resolved_url = response.url();
@@ -82,14 +83,14 @@ app.get('/content', async (req, res) => {
 
 			return page
 		})
-		.then(pg => {
-			if (req.query.cookies) {
-				console.log(`cookies requested for ${req.query.url}`);
-				page.cookies()
-					.then(arr => payload.cookies = arr)
-					.catch(e => {throw `error processing cookies: ${e}`});
-			}
-		})
+//		.then(pg => {
+//			if (req.query.cookies) {
+//				console.log(`cookies requested for ${req.query.url}`);
+//				page.cookies()
+//					.then(arr => payload.cookies = arr)
+//					.catch(e => {throw `error processing cookies: ${e}`});
+//			}
+//		})
 		.catch(e => {
 			console.log(`big uh-oh: ${e}`);
 			res.status(500);
