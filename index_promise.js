@@ -27,9 +27,10 @@ app.get('/content', async (req, res) => {
 	console.log(`received a request for ${req.query.url}`);
 
 	// initialize "globals"
-	let data
 	let page
 	let p_res // puppet client (browser) response
+
+	let cookies
 
 	payload = {
 		html: "",
@@ -41,23 +42,22 @@ app.get('/content', async (req, res) => {
 		error: "",
 	}
 
-	await browser.newPage()
+	browser.newPage()
 		.then(pg => {
-			page = pg; // set "global" so we can close in .finally
+			page = pg; // set "global" so we can access cookies and close in .finally
 			return pg
 		})
-		.then(page => page.goto(req.query.url,
-			{
-				timeout: 120000 // 120s
-			}
-		))
+		.then(pg => {
+			p_res = pg.goto(req.query.url,
+				{
+					timeout: 120000 // 120s
+				}
+			)
+			return p_res
+		})
+		// response
 		.then(response => {
 			p_res = response
-
-			if (req.query.cookies) {
-				console.log(`cookies requested for ${req.query.url}: ${JSON.stringify(response.headers())}`);
-				payload.cookies = response.headers()["set-cookie"] 
-			}
 
 			payload.resolved_url = response.url();
 			payload.statusCode = response.status();
@@ -66,6 +66,15 @@ app.get('/content', async (req, res) => {
 			// 200-like status
 			if (!response.ok()) {
 				throw `errored response: ${req.query.url} returned ${response.status()}, ${response.statusText()}`
+			}
+
+			return response
+		})
+		// cookies
+		.then(async response => {
+			if (req.query.cookies) {
+				payload.cookies = await page.cookies();
+				console.log(`cookies requested for ${req.query.url}:  ${JSON.stringify(payload.cookies)}`)
 			}
 			return response.buffer()
 		})
@@ -83,14 +92,6 @@ app.get('/content', async (req, res) => {
 
 			return page
 		})
-//		.then(pg => {
-//			if (req.query.cookies) {
-//				console.log(`cookies requested for ${req.query.url}`);
-//				page.cookies()
-//					.then(arr => payload.cookies = arr)
-//					.catch(e => {throw `error processing cookies: ${e}`});
-//			}
-//		})
 		.catch(e => {
 			console.log(`big uh-oh: ${e}`);
 			res.status(500);
