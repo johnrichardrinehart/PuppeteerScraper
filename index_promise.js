@@ -12,6 +12,7 @@ async function init() {
 	browser = await puppeteer.launch();
 }
 
+
 // TODO: remove, TESTING
 let memory_consumed
 let is_log_memory
@@ -28,43 +29,76 @@ app.get('/content', async (req, res) => {
 	// initialize "globals"
 	let data
 	let page
+	let p_res // puppet client (browser) response
+
+	payload = {
+		html: "",
+		cookies: "",
+		statusCode: -1,
+		statusText: "",
+		requested_url: req.query.url,
+		resolved_url: "",
+		error: "",
+	}
 
 	await browser.newPage()
 		.then(pg => {
 			page = pg; // set "global" so we can close in .finally
-			return page
+			return pg
 		})
 		.then(page => page.goto(req.query.url,
 			{
 				timeout: 10000 // 10s
 			}
 		))
-		.then(res => {
-			// 200-like status
-			if (!res.ok()) {
-				throw `errored response: ${req.query.url} returned ${res.status()}, ${res.statusText()}`
+		.then(response => {
+			p_res = response
+
+			if (req.query.cookies) {
+				// payload.cookies = res.header["set-cookie"] 
 			}
-			return res.buffer()
+
+			payload.resolved_url = response.url();
+			payload.statusCode = response.status();
+			payload.statusText = response.statusText();
+
+			// 200-like status
+			if (!response.ok()) {
+				throw `errored response: ${req.query.url} returned ${response.status()}, ${response.statusText()}`
+			}
+			return response.buffer()
 		})
 		.then(buf => {
-
 			// TODO: remove, TESTING
 			if (is_log_memory) {
 				memory_consumed += buf.length
 			}
 
 			data = buf.toString(); // UTF-8
+			payload.html = buf.toString();
 
 			res.status(200);
-			res.set('content-type', 'text/html');
+			res.set('content-type', 'text/json');
 
+			return page
+		})
+		.then(pg => {
+			if (req.query.cookies) {
+				console.log(`cookies requested for ${req.query.url}`);
+				page.cookies()
+					.then(arr => payload.cookies = arr)
+					.catch(e => {throw `error processing cookies: ${e}`});
+			}
 		})
 		.catch(e => {
 			console.log(`big uh-oh: ${e}`);
 			res.status(500);
+			payload.error = e;
 		})
 		.finally(() => {
-			res.end(data); // data is null if .catch
+			res.json(payload); // payload.error is non-null if catch
+			res.end();
+			console.log(`successfully processed ${req.query.url}`);
 
 			// TODO: remove, TESTING
 			if (is_log_memory) {
