@@ -11,9 +11,9 @@
 # track memory
 if [[ $# -ge 2 ]]
 then
-	yarn dlx pm2 --wait-ready start "node --trace-warnings $1 track-memory" &
+	yarn pm2 --wait-ready start "node --trace-warnings $1 track-memory" &
 else
-	yarn dlx pm2 --wait-ready start "node --trace-warnings $1" &
+	yarn pm2 --wait-ready start "node --trace-warnings $1" &
 fi
 
 # see which processes are running with:
