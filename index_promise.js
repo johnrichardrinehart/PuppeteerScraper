@@ -17,7 +17,7 @@ async function init() {
 let memory_consumed
 let is_log_memory
 // keep track of cumulative memory allocated
-if (process.argv.length > 2 ) {
+if (process.argv.length > 2) {
 	is_log_memory = true;
 	memory_consumed = 0; // initialize
 }
@@ -72,7 +72,7 @@ app.get('/content', async (req, res) => {
 		})
 		// cookies
 		.then(async response => {
-			if (req.query.cookies) {
+			if (req.query.cookies === "true") {
 				payload.cookies = await page.cookies();
 				console.log(`cookies requested for ${req.query.url}:  ${JSON.stringify(payload.cookies)}`)
 			}
@@ -106,7 +106,7 @@ app.get('/content', async (req, res) => {
 			if (is_log_memory) {
 				console.log(`processed ${(memory_consumed >> 20)} MiB (${memory_consumed} bytes) so far`);
 			}
-			page.close().catch(e => {console.log(`failed to close page for ${req.query.url}: ${e}`)});
+			page.close().catch(e => { console.log(`failed to close page for ${req.query.url}: ${e}`) });
 		})
 })
 
