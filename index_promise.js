@@ -29,8 +29,6 @@ app.get('/content', async (req, res) => {
 	// initialize "globals"
 	let page
 
-	let cookies
-
 	payload = {
 		html: "",
 		cookies: "",
