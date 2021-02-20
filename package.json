@@ -1,8 +1,7 @@
 {
   "name": "puppeteer_api",
   "scripts": {
-    "start-promise": "node ./index_promise.js",
-    "start-try-catch": "node ./index_try_catch.js"
+    "start": "node ./index.js"
   },
   "dependencies": {
     "express": "^4.17.1",
