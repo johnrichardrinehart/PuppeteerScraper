@@ -28,7 +28,6 @@ app.get('/content', async (req, res) => {
 
 	// initialize "globals"
 	let page
-	let p_res // puppet client (browser) response
 
 	let cookies
 
@@ -48,17 +47,14 @@ app.get('/content', async (req, res) => {
 			return pg
 		})
 		.then(pg => {
-			p_res = pg.goto(req.query.url,
+			pg.goto(req.query.url,
 				{
 					timeout: 120000 // 120s
 				}
 			)
-			return p_res
 		})
 		// response
 		.then(response => {
-			p_res = response
-
 			payload.resolved_url = response.url();
 			payload.statusCode = response.status();
 			payload.statusText = response.statusText();
