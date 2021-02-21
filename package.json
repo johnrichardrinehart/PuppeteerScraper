@@ -6,6 +6,7 @@
   "dependencies": {
     "async-mutex": "^0.3.0",
     "express": "^4.17.1",
+    "got": "^11.8.1",
     "pm2": "^4.5.4",
     "puppeteer": "^7.1.0",
     "puppeteer-extra": "^3.1.17",
@@ -16,5 +17,10 @@
   },
   "devDependencies": {
     "eslint": "^7.20.0"
+  },
+  "dependenciesMeta": {
+    "puppeteer-page-proxy@1.2.8": {
+      "unplugged": true
+    }
   }
 }

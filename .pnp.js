@@ -40,6 +40,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["async-mutex", "npm:0.3.0"],
             ["eslint", "npm:7.20.0"],
             ["express", "npm:4.17.1"],
+            ["got", "npm:11.8.1"],
             ["pm2", "npm:4.5.4"],
             ["puppeteer", "npm:7.1.0"],
             ["puppeteer-extra", "virtual:a7774af37d0d8be04c82f23aae1c0c63b09c80e2a1d16e59bade65459cef550e40cb542fa32e8a3372c42dfca172278b5f4907086acd53c86492f843172fab88#npm:3.1.17"],
@@ -587,7 +588,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageLocation": "./.yarn/cache/async-npm-2.6.3-2de4150248-5c30ec6f3d.zip/node_modules/async/",
           "packageDependencies": [
             ["async", "npm:2.6.3"],
-            ["lodash", "npm:4.17.20"]
+            ["lodash", "npm:4.17.21"]
           ],
           "linkType": "HARD",
         }],
@@ -2803,13 +2804,6 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
         }]
       ]],
       ["lodash", [
-        ["npm:4.17.20", {
-          "packageLocation": "./.yarn/cache/lodash-npm-4.17.20-c0db62021c-c62101d250.zip/node_modules/lodash/",
-          "packageDependencies": [
-            ["lodash", "npm:4.17.20"]
-          ],
-          "linkType": "HARD",
-        }],
         ["npm:4.17.21", {
           "packageLocation": "./.yarn/cache/lodash-npm-4.17.21-6382451519-4983720b9a.zip/node_modules/lodash/",
           "packageDependencies": [
@@ -3778,7 +3772,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
       ]],
       ["puppeteer-page-proxy", [
         ["https://github.com/johnrichardrinehart/puppeteer-page-proxy.git#commit=e4b2088ed5a47bcf9642b53967a78cc21c04822d", {
-          "packageLocation": "./.yarn/cache/puppeteer-page-proxy-https-0771ef78de-bac0986afa.zip/node_modules/puppeteer-page-proxy/",
+          "packageLocation": "./.yarn/unplugged/puppeteer-page-proxy-https-0771ef78de/node_modules/puppeteer-page-proxy/",
           "packageDependencies": [
             ["puppeteer-page-proxy", "https://github.com/johnrichardrinehart/puppeteer-page-proxy.git#commit=e4b2088ed5a47bcf9642b53967a78cc21c04822d"],
             ["got", "npm:11.8.1"],
@@ -3797,6 +3791,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["async-mutex", "npm:0.3.0"],
             ["eslint", "npm:7.20.0"],
             ["express", "npm:4.17.1"],
+            ["got", "npm:11.8.1"],
             ["pm2", "npm:4.5.4"],
             ["puppeteer", "npm:7.1.0"],
             ["puppeteer-extra", "virtual:a7774af37d0d8be04c82f23aae1c0c63b09c80e2a1d16e59bade65459cef550e40cb542fa32e8a3372c42dfca172278b5f4907086acd53c86492f843172fab88#npm:3.1.17"],
