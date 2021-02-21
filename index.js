@@ -19,6 +19,10 @@ let browser;
 async function init() {
     browser = await puppeteer.launch({
         // headless: false,
+        ignoreHTTPSErrors: true,
+        args: [
+            "--ignore-certificate-errors"
+        ]
     });
 }
 
@@ -51,11 +55,11 @@ app.get("/fetch", async (req, res) => {
 
     try {
         page = await browser.newPage();
-        
+
         if (isValidHttpUrl(req.query.proxy)) {
             await page.setRequestInterception(true);
             console.log("proxying to ", req.query.proxy);
-            
+
             page.on("request", async request => {
                 if (!["document", "script", "xhr", "fetch"].includes(request.resourceType())) {
                     request.abort();
@@ -64,9 +68,9 @@ app.get("/fetch", async (req, res) => {
 
                 console.log(`fetching ${request.url()}`);
 
-                
+
                 await mutex.runExclusive(async () => {
-                    num+=1;
+                    num += 1;
                 });
 
                 try {
@@ -77,26 +81,26 @@ app.get("/fetch", async (req, res) => {
                 }
             });
         }
-        
+
         let response = await page.goto(req.query.url,
             {
-                timeout: 5*60*1000, // 5m
-                waitUntil: ["load","domcontentloaded","networkidle0","networkidle2",],
+                timeout: 5 * 60 * 1000, // 5m
+                waitUntil: ["load", "domcontentloaded", "networkidle0", "networkidle2",],
             });
 
         console.log(`\nmade ${num} requests!!!\n`);
-            
+
         // response
         payload.resolved_url = response.url();
         payload.statusCode = response.status();
         payload.statusText = response.statusText();
-    
+
         // 200-like status
         if (!response.ok()) {
             throw `errored response: ${req.query.url} returned ${response.status()}, ${response.statusText()}`;
         }
 
-    
+
         if (req.query.cookies === "true") {
             payload.cookies = await page.cookies();
         }
@@ -126,8 +130,8 @@ app.get("/fetch", async (req, res) => {
         if (is_log_memory) {
             console.log(`processed ${(memory_consumed >> 20)} MiB (${memory_consumed} bytes) so far`);
         }
-        
-        page.close().catch((e) => { console.log(`failed to close page for ${req.query.url}: ${e}`); })
+
+        page.close().catch((e) => { console.log(`failed to close page for ${req.query.url}: ${e}`); });
 
         // setTimeout(() => page.close().catch((e) => { console.log(`failed to close page for ${req.query.url}: ${e}`); }),10000);
     }
@@ -153,11 +157,11 @@ app.listen(8000, async () => {
 // [JRR]: https://stackoverflow.com/questions/5717093/check-if-a-javascript-string-is-a-url
 function isValidHttpUrl(string) {
     let url;
-  
+
     try {
         url = new URL(string);
     } catch (_) {
-        return false;  
+        return false;
     }
 
     return url.protocol === "http:" || url.protocol === "https:";
