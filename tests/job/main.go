@@ -19,7 +19,7 @@ import (
 type result struct {
 	Body         string `json:"body"`
 	Error        string `json:"error"`
-	Cookies      string `json:"cookies"`
+	Cookies      string `json:"cookies,omitempty"`
 	StatusCode   int    `json:"status_code"`
 	Status       string `json:"status_text"`
 	RequestedURL string `json:"requested_url"`
