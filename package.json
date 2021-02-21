@@ -4,12 +4,26 @@
     "start": "node ./index.js"
   },
   "dependencies": {
+    "async-mutex": "^0.3.0",
+    "eslint": "^7.20.0",
     "express": "^4.17.1",
+    "got": "^11.8.1",
+    "hpagent": "^0.1.1",
     "pm2": "^4.5.4",
     "puppeteer": "^7.1.0",
     "puppeteer-extra": "^3.1.17",
     "puppeteer-extra-plugin-stealth": "^2.7.5",
     "puppeteer-extra-plugin-user-data-dir": "^2.2.11",
-    "puppeteer-extra-plugin-user-preferences": "^2.2.11"
+    "puppeteer-extra-plugin-user-preferences": "^2.2.11",
+    "puppeteer-page-proxy": "^1.2.8",
+    "request": "^2.88.2"
+  },
+  "dependenciesMeta": {
+    "got@11.8.1": {
+      "unplugged": true
+    },
+    "puppeteer-page-proxy@1.2.8": {
+      "unplugged": true
+    }
   }
 }
