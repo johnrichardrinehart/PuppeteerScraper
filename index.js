@@ -47,7 +47,6 @@ app.get("/fetch", async (req, res) => {
         error: "",
     };
 
-    let cnt;
     let num = 0;
 
     try {
@@ -100,7 +99,6 @@ app.get("/fetch", async (req, res) => {
     
         if (req.query.cookies === "true") {
             payload.cookies = await page.cookies();
-            console.log(`cookies requested for ${req.query.url}:  ${JSON.stringify(payload.cookies)}`);
         }
 
         let content = await page.content();
