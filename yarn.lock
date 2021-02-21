@@ -175,13 +175,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tootallnate/once@npm:1":
-  version: 1.1.2
-  resolution: "@tootallnate/once@npm:1.1.2"
-  checksum: d030f3fb14e0373dbf5005d8f696ff34fda87bf56744bea611fc737449bfc0687ebcb28ee8ba4c6624877f51b18d701c0d417d793f406006a192f4721911d048
-  languageName: node
-  linkType: hard
-
 "@types/cacheable-request@npm:^6.0.1":
   version: 6.0.1
   resolution: "@types/cacheable-request@npm:6.0.1"
@@ -1843,7 +1836,7 @@ fsevents@~2.3.1:
   languageName: node
   linkType: hard
 
-"got@npm:^11.5.1, got@npm:^11.8.1":
+"got@npm:^11.5.1":
   version: 11.8.1
   resolution: "got@npm:11.8.1"
   dependencies:
@@ -1963,17 +1956,6 @@ fsevents@~2.3.1:
     agent-base: 4
     debug: 3.1.0
   checksum: 627c6a7437c8ad731587c40a83c356b7e09acaaf87e7ed96cc78daa81741dd293043063d04f743682772118c59342ab99701f80b1f836f0d582ad3e89e084229
-  languageName: node
-  linkType: hard
-
-"http-proxy-agent@npm:^4.0.1":
-  version: 4.0.1
-  resolution: "http-proxy-agent@npm:4.0.1"
-  dependencies:
-    "@tootallnate/once": 1
-    agent-base: 6
-    debug: 4
-  checksum: 6703aeb5c5d398d93757c38eb0d77df10239ff3fefee27614aad2831f06f9ca6c8b21c43e9ff02464b5284cba3c6cedefffd210750871277ebf652cbe3230566
   languageName: node
   linkType: hard
 
@@ -3245,16 +3227,15 @@ fsevents@~2.3.1:
   languageName: node
   linkType: hard
 
-"puppeteer-page-proxy@npm:^1.2.8":
+"puppeteer-page-proxy@https://github.com/johnrichardrinehart/puppeteer-page-proxy":
   version: 1.2.8
-  resolution: "puppeteer-page-proxy@npm:1.2.8"
+  resolution: "puppeteer-page-proxy@https://github.com/johnrichardrinehart/puppeteer-page-proxy.git#commit=e4b2088ed5a47bcf9642b53967a78cc21c04822d"
   dependencies:
     got: ^11.5.1
-    http-proxy-agent: ^4.0.1
-    https-proxy-agent: ^5.0.0
+    hpagent: ^0.1.1
     socks-proxy-agent: ^5.0.0
     tough-cookie: ^4.0.0
-  checksum: 5e162f1d22ba4df051319f7cfd5ddd18a97288c82975b34a44fa280c95fc63c4f2ddb2a01c8643cf97b80b2dfab125ec55714929917bf9b033862e591ec5da60
+  checksum: bac0986afa218aed2789a43833f53b9dfa0db50625e2f424f49fba17f06a7d3c50bda73a4abd3bb65a2a12bcbc839c72b8ce990d460281bf79abd4c028754b9c
   languageName: node
   linkType: hard
 
@@ -3285,21 +3266,13 @@ fsevents@~2.3.1:
     async-mutex: ^0.3.0
     eslint: ^7.20.0
     express: ^4.17.1
-    got: ^11.8.1
-    hpagent: ^0.1.1
     pm2: ^4.5.4
     puppeteer: ^7.1.0
     puppeteer-extra: ^3.1.17
     puppeteer-extra-plugin-stealth: ^2.7.5
     puppeteer-extra-plugin-user-data-dir: ^2.2.11
     puppeteer-extra-plugin-user-preferences: ^2.2.11
-    puppeteer-page-proxy: ^1.2.8
-    request: ^2.88.2
-  dependenciesMeta:
-    got@11.8.1:
-      unplugged: true
-    puppeteer-page-proxy@1.2.8:
-      unplugged: true
+    puppeteer-page-proxy: "https://github.com/johnrichardrinehart/puppeteer-page-proxy"
   languageName: unknown
   linkType: soft
 
