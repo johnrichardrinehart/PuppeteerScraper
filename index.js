@@ -71,15 +71,18 @@ app.get("/fetch", async (inbound_request, res) => {
     // initialize "globals"
     let page;
     // JSON for the response
-    const payload = {
+    let payload = {
         body: "",
-        cookies: "",
         status_code: -1,
         status_text: "",
         requested_url: inbound_request.query.url,
         resolved_url: "",
         error:  "",
     };
+    // Cookies wanted?
+    if (inbound_request.query.cookies === "true") {
+        payload.cookies = "";
+    }
     
     let num;
     
