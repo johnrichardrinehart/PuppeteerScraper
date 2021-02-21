@@ -18,11 +18,16 @@ let browser;
 
 async function init() {
     browser = await puppeteer.launch({
-        // headless: false,
+        headless: true,
         ignoreHTTPSErrors: true,
         args: [
-            "--ignore-certificate-errors"
-        ]
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-sync",
+            "--ignore-certificate-errors",
+            "--lang=en-US,en;q=0.9",
+        ],
+        defaultViewport: {width:1366, height:768},
     });
 }
 
