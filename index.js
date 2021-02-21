@@ -1,20 +1,45 @@
 "use strict";
 
+// Web server
 const express = require("express");
 const app = express();
-
+// Web browser
 const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 puppeteer.use(StealthPlugin());
+// HTTP Proxy Agent support
 const pageProxy = require("puppeteer-page-proxy");
-
+// Keep track of number of requests for each page
 var Mutex = require("async-mutex").Mutex;
 const mutex = new Mutex();
-
+// Intercept and manually execute all (non-proxied) requests
 const got = require("got");
-
+// Handle a special case related to https://github.com/puppeteer/puppeteer/issues/6913
 const IANACodes = require("./lib/iana.json");
+// Logging
+const winston = require('winston');
 
+const logger = winston.createLogger({
+    level: 'info',
+    format: winston.format.json(),
+    transports: [
+      //
+      // - Write all logs with level `error` and below to `error.log`
+      // - Write all logs with level `info` and below to `combined.log`
+      //
+      new winston.transports.File({ filename: 'error.log', level: 'error' }),
+      new winston.transports.File({ filename: 'combined.log' }),
+    ],
+  });
+
+  if (process.env.NODE_ENV !== 'production') {
+    logger.add(new winston.transports.Console({
+      format: winston.format.simple(),
+    }));
+  }
+
+  
+// Made non-null by init()
 let browser;
 
 async function init() {
@@ -42,11 +67,10 @@ if (process.argv.length > 2) {
 }
 
 app.get("/fetch", async (inbound_request, res) => {
-    console.log(`received a request for ${inbound_request.query.url}`);
-    
+    logger.info(`${inbound_request.query.url}: page visit request received`);
     // initialize "globals"
     let page;
-    
+    // JSON for the response
     const payload = {
         body: "",
         cookies: "",
@@ -56,35 +80,36 @@ app.get("/fetch", async (inbound_request, res) => {
         resolved_url: "",
         error:  "",
     };
-    
-    let num = 0;
-    
+
+    let num;
+        
     try {
         page = await browser.newPage();
-        
+        // handle all requests manually
         await page.setRequestInterception(true);
-        
         
         page.on("request", async request => {
             if (!["document", "script", "xhr", "fetch"].includes(request.resourceType())) {
                 request.abort();
                 return;
             }
-            
-            // console.log(`fetching ${request.url()}`);
-            
+                        
             await mutex.runExclusive(async () => {
                 num += 1;
             });
             
             if (isValidHttpUrl(inbound_request.query.proxy)) {
                 
-                // console.log(`proxying request for ${req.url()} to ${req.query.proxy}`);
+                logger.info(`${inbound_request.query.url}: proxying request for ${req.url()} to ${req.query.proxy}`);
                 
                 try {
                     await pageProxy(request, inbound_request.query.proxy);
                 } catch (err) {
-                    console.log(`proxied request to ${request.url()} failed: ${err}`, err);
+                    if (request.url() !== inbound_request.query.url) {
+                        logger.warn(`${inbound_request.query.url}: auxiliary request to ${request.url()} failed: ${err}`);
+                    } else {
+                        logger.error(`${inbound_request.query.url}: request failed: ${err}`); 
+                    }
                     request.abort();
                 }
                 return
@@ -108,9 +133,9 @@ app.get("/fetch", async (inbound_request, res) => {
                 response = await got(request.url(), options); 
             } catch (err) {
                 if (request.url() !== inbound_request.query.url) {
-                    console.log(`auxiliary request to ${request.url()} failed: ${err}`);
+                    logger.warn(`${inbound_request.query.url}: auxiliary request to ${request.url()} failed: ${err}`);
                 } else {
-                    console.log(`request to ${request.url()} failed: ${err}`); 
+                    logger.error(`${inbound_request.query.url}: request failed: ${err}`); 
                 }
                 request.abort();
                 return
@@ -122,8 +147,8 @@ app.get("/fetch", async (inbound_request, res) => {
                 const ds = Object.keys(IANACodes).map(x=> Math.abs(parseInt(x)-code));
                 // [JRR] https://stackoverflow.com/questions/11301438/return-index-of-greatest-value-in-an-array
                 const closest = ds.indexOf(Math.min(...ds))
-                const n_code = parseInt(Object.keys(IANACodes)[closest.toString()])                    
-                console.log(`replacing incompatible code ${code} with ${n_code}`)
+                const n_code = parseInt(Object.keys(IANACodes)[closest.toString()])
+                logger.info(`${inbound_request.query.url}: replacing incompatible code ${code} for ${request.url()} with ${n_code}`)
                 code = n_code
             }
             
@@ -149,7 +174,7 @@ app.get("/fetch", async (inbound_request, res) => {
             
             // 200-like status
             if (!response?.ok()) {
-                console.log(`${inbound_request.query.url} was unhealthy => status: ${response?.status()}, response: ${response?.statusText()}`);
+                logger.warn(`${inbound_request.query.url}: unhealthy response => status: ${response?.status()}, response: ${response?.statusText()}`);
             }
             
             if (inbound_request.query.cookies === "true") {
@@ -172,30 +197,30 @@ app.get("/fetch", async (inbound_request, res) => {
             res.json(payload); // payload.error is non-null if catch
             res.end();
             if (!payload.error) {
-                console.log(`succeeded: page visit to ${inbound_request.query.url}`);
+                logger.info(`${inbound_request.query.url}: successful page visit: ${payload.status_code} - ${payload.status_text}`);
             } else {
-                console.log(`failed: page visit to ${inbound_request.query.url}: ${payload.error}`);
+                logger.info(`${inbound_request.query.url}: unsuccessful page visit: ${payload.status_code} - ${payload.status_text}: ${payload.error}`);
             }
             
             // TODO: remove, TESTING
             if (is_log_memory) {
-                console.log(`processed ${(memory_consumed >> 20)} MiB (${memory_consumed} bytes) so far`);
+                logger.info(`${indbound_request_query.url}: processed ${(memory_consumed >> 20)} MiB (${memory_consumed} bytes) so far`);
             }
             
-            page.close().catch((e) => { console.log(`failed to close page for ${inbound_request.query.url}: ${e}`); });
+            page.close().catch((e) => {logger.error(`${inbound_request.query.url}: failed page close: ${e}`); });
         }
     });
-    
+
     app.listen(8000, async () => {
         await init(); // initialize the browser
         // TODO: remove, TESTING
         if (is_log_memory) {
-            console.log("logging memory");
+            logger.info("init: logging memory");
         } else {
-            console.log("not logging memory");
+            logger.info("init: not logging memory");
         }
         
-        console.log(`listening on port 8000 (${process.pid})`);
+        logger.info(`init: listening on port 8000 (PID: ${process.pid})`);
         
         // Here we send the ready signal to PM2
         if (process.send) {

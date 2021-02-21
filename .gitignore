@@ -8,3 +8,9 @@
 !/.yarn/cache
 #/.pnp.*
 node_modules
+
+# winston
+*.log
+# tests
+*.db
+*.db-journal
