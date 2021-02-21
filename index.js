@@ -133,7 +133,7 @@ app.get("/fetch", async (req, res) => {
     }
 });
 
-app.listen(8003, async () => {
+app.listen(8000, async () => {
     await init(); // initialize the browser
     // TODO: remove, TESTING
     if (is_log_memory) {
