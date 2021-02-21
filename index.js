@@ -18,7 +18,7 @@ let browser;
 
 async function init() {
     browser = await puppeteer.launch({
-        headless: false,
+        // headless: false,
     });
 }
 
