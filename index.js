@@ -23,22 +23,22 @@ const logger = winston.createLogger({
     level: 'info',
     format: winston.format.json(),
     transports: [
-      //
-      // - Write all logs with level `error` and below to `error.log`
-      // - Write all logs with level `info` and below to `combined.log`
-      //
-      new winston.transports.File({ filename: 'error.log', level: 'error' }),
-      new winston.transports.File({ filename: 'combined.log' }),
+        //
+        // - Write all logs with level `error` and below to `error.log`
+        // - Write all logs with level `info` and below to `combined.log`
+        //
+        new winston.transports.File({ filename: 'error.log', level: 'error' }),
+        new winston.transports.File({ filename: 'combined.log' }),
     ],
-  });
+});
 
-  if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV !== 'production') {
     logger.add(new winston.transports.Console({
-      format: winston.format.simple(),
+        format: winston.format.simple(),
     }));
-  }
+}
 
-  
+
 // Made non-null by init()
 let browser;
 
@@ -80,9 +80,9 @@ app.get("/fetch", async (inbound_request, res) => {
         resolved_url: "",
         error:  "",
     };
-
+    
     let num;
-        
+    
     try {
         page = await browser.newPage();
         // handle all requests manually
@@ -93,14 +93,14 @@ app.get("/fetch", async (inbound_request, res) => {
                 request.abort();
                 return;
             }
-                        
+            
             await mutex.runExclusive(async () => {
                 num += 1;
             });
             
-            if (isValidHttpUrl(inbound_request.query.proxy)) {
-                
-                logger.info(`${inbound_request.query.url}: proxying request for ${req.url()} to ${req.query.proxy}`);
+            if (inbound_request.query.proxy) {
+
+                logger.info(`${inbound_request.query.url}: proxying request for ${request.url()} to ${inbound_request.query.proxy}`);
                 
                 try {
                     await pageProxy(request, inbound_request.query.proxy);
@@ -166,7 +166,7 @@ app.get("/fetch", async (inbound_request, res) => {
                 timeout: 10 * 60 * 1000, // 10m
                 waitUntil: ["load", "domcontentloaded", "networkidle0", "networkidle2",],
             });
-                        
+            
             // response
             payload.status_code = response?.status();
             payload.status_text = response?.statusText();
@@ -190,53 +190,40 @@ app.get("/fetch", async (inbound_request, res) => {
             payload.body = body.toString();
             res.status(200);
             res.set("content-type", "text/json");
-        } catch (e) {
+    } catch (e) {
             res.status(500);
             payload.error = e.toString();
-        } finally {
-            res.json(payload); // payload.error is non-null if catch
-            res.end();
-            if (!payload.error) {
-                logger.info(`${inbound_request.query.url}: successful page visit: ${payload.status_code} - ${payload.status_text}`);
-            } else {
-                logger.info(`${inbound_request.query.url}: unsuccessful page visit: ${payload.status_code} - ${payload.status_text}: ${payload.error}`);
-            }
-            
-            // TODO: remove, TESTING
-            if (is_log_memory) {
-                logger.info(`${indbound_request_query.url}: processed ${(memory_consumed >> 20)} MiB (${memory_consumed} bytes) so far`);
-            }
-            
-            page.close().catch((e) => {logger.error(`${inbound_request.query.url}: failed page close: ${e}`); });
+    } finally {
+        res.json(payload); // payload.error is non-null if catch
+        res.end();
+        if (!payload.error) {
+            logger.info(`${inbound_request.query.url}: successful page visit: ${payload.status_code} - ${payload.status_text}`);
+        } else {
+            logger.info(`${inbound_request.query.url}: unsuccessful page visit: ${payload.status_code} - ${payload.status_text}: ${payload.error}`);
         }
-    });
-
-    app.listen(8000, async () => {
-        await init(); // initialize the browser
+        
         // TODO: remove, TESTING
         if (is_log_memory) {
-            logger.info("init: logging memory");
-        } else {
-            logger.info("init: not logging memory");
+            logger.info(`${indbound_request_query.url}: processed ${(memory_consumed >> 20)} MiB (${memory_consumed} bytes) so far`);
         }
         
-        logger.info(`init: listening on port 8000 (PID: ${process.pid})`);
-        
-        // Here we send the ready signal to PM2
-        if (process.send) {
-            process.send("ready");
-        }
-    });
-    
-    // [JRR]: https://stackoverflow.com/questions/5717093/check-if-a-javascript-string-is-a-url
-    function isValidHttpUrl(string) {
-        let url;
-        
-        try {
-            url = new URL(string);
-        } catch (_) {
-            return false;
-        }
-        
-        return url.protocol === "http:" || url.protocol === "https:";
+        page.close().catch((e) => {logger.error(`${inbound_request.query.url}: failed page close: ${e}`); });
     }
+});
+    
+app.listen(8000, async () => {
+    await init(); // initialize the browser
+    // TODO: remove, TESTING
+    if (is_log_memory) {
+        logger.info("init: logging memory");
+    } else {
+        logger.info("init: not logging memory");
+    }
+    
+    logger.info(`init: listening on port 8000 (PID: ${process.pid})`);
+    
+    // Here we send the ready signal to PM2
+    if (process.send) {
+        process.send("ready");
+    }
+});
