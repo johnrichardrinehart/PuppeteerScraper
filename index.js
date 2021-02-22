@@ -209,8 +209,11 @@ app.get("/fetch", async (inbound_request, res) => {
         if (is_log_memory) {
             logger.info(`${indbound_request_query.url}: processed ${(memory_consumed >> 20)} MiB (${memory_consumed} bytes) so far`);
         }
-        
-        page.close().catch((e) => {logger.error(`${inbound_request.query.url}: failed page close: ${e}`); });
+        try {
+            await page.close()
+        } catch (e) {
+            logger.error(`${inbound_request.query.url}: failed page close: ${e}`);
+        }
     }
 });
     
