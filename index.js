@@ -9,9 +9,6 @@ const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 puppeteer.use(StealthPlugin());
 // HTTP Proxy Agent support
 const pageProxy = require("puppeteer-page-proxy");
-// Keep track of number of requests for each page
-var Mutex = require("async-mutex").Mutex;
-const mutex = new Mutex();
 // Intercept and manually execute all (non-proxied) requests
 const got = require("got");
 // Handle a special case related to https://github.com/puppeteer/puppeteer/issues/6913
@@ -95,10 +92,6 @@ app.get("/fetch", async (inbound_request, res) => {
                 request.abort();
                 return;
             }
-            
-            await mutex.runExclusive(async () => {
-                num += 1;
-            });
             
             if (inbound_request.query.proxy) {
                 

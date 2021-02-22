@@ -16,6 +16,10 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+var netClient = &http.Client{
+  Timeout: time.Second * 120,
+}
+
 type result struct {
 	Body         string `json:"body"`
 	Error        string `json:"error"`
@@ -92,8 +96,9 @@ func main() {
 		}
 
 		wg.Add(1)
-		time.Sleep(5000 * time.Millisecond)
+		time.Sleep(10 * time.Second)
 		go func() {
+			defer wg.Done()
 			u, err := makeURL(*scraper, *proxy, url, *cookies)
 			if err != nil {
 				log.Printf("could not make a URL for %s: %s", url, err)
@@ -102,11 +107,11 @@ func main() {
 			r, err := getResult(u)
 			if err != nil {
 				log.Printf("failed to get result for %s: %s", url, err)
+				return
 			}
 			duration := time.Now().Sub(start)
 			r.duration = duration.Milliseconds()
 			chResult <- *r
-			wg.Done()
 		}()
 	}
 	wg.Wait()
@@ -127,10 +132,11 @@ func makeURL(scraper string, proxy string, urlToFetch string, isGetCookies bool)
 }
 
 func getResult(u *url.URL) (*result, error) {
-	resp, err := http.DefaultClient.Get(u.String())
+	resp, err := netClient.Get(u.String())
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close();
 	return responseToResult(resp)
 }
 
