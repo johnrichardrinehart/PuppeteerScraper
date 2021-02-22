@@ -61,10 +61,12 @@ app.get("/fetch", async (inbound_request, res) => {
     if (inbound_request.query.cookies === "true") {
         payload.cookies = "";
     }
-        
+    
+    let browser
+    
     try {
         // https://stackoverflow.com/a/50598625/1477586
-        const browser = await puppeteer.launch({
+        browser = await puppeteer.launch({
             headless: true,
             ignoreHTTPSErrors: true,
             args: [
@@ -83,6 +85,12 @@ app.get("/fetch", async (inbound_request, res) => {
             ],
             defaultViewport: {width:1366, height:768},
         });
+    } catch (e) {
+        logger.error(`${inbound_request.query.url}: browser failed to start: ${e}`); 
+        return
+    }
+    
+    try {
         page = await browser.newPage();
         // handle all requests manually
         await page.setRequestInterception(true);
