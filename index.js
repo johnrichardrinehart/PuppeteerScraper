@@ -38,32 +38,6 @@ if (process.env.NODE_ENV !== 'production') {
     }));
 }
 
-
-// Made non-null by init()
-let browser;
-
-async function init() {
-    browser = await puppeteer.launch({
-        headless: true,
-        ignoreHTTPSErrors: true,
-        args: [
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-sync",
-            "--ignore-certificate-errors",
-            "--lang=en-US,en;q=0.9",
-            // https://stackoverflow.com/a/58589026/1477586
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--single-process', // <- this one doesn't works in Windows
-            '--disable-gpu',
-        ],
-        defaultViewport: {width:1366, height:768},
-    });
-}
-
 // TODO: remove, TESTING
 let memory_consumed;
 let is_log_memory;
@@ -90,10 +64,28 @@ app.get("/fetch", async (inbound_request, res) => {
     if (inbound_request.query.cookies === "true") {
         payload.cookies = "";
     }
-    
-    let num;
-    
+        
     try {
+        // https://stackoverflow.com/a/50598625/1477586
+        const browser = await puppeteer.launch({
+            headless: true,
+            ignoreHTTPSErrors: true,
+            args: [
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-sync",
+                "--ignore-certificate-errors",
+                "--lang=en-US,en;q=0.9",
+                // https://stackoverflow.com/a/58589026/1477586
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--single-process', // <- this one doesn't works in Windows
+                '--disable-gpu',
+            ],
+            defaultViewport: {width:1366, height:768},
+        });
         page = await browser.newPage();
         // handle all requests manually
         await page.setRequestInterception(true);
@@ -217,7 +209,7 @@ app.get("/fetch", async (inbound_request, res) => {
                 logger.info(`${indbound_request_query.url}: processed ${(memory_consumed >> 20)} MiB (${memory_consumed} bytes) so far`);
             }
             try {
-                await page.close()
+                await browser.close()
             } catch (e) {
                 logger.error(`${inbound_request.query.url}: failed page close: ${e}`);
             }
@@ -225,7 +217,6 @@ app.get("/fetch", async (inbound_request, res) => {
     });
     
     app.listen(8000, async () => {
-        await init(); // initialize the browser
         // TODO: remove, TESTING
         if (is_log_memory) {
             logger.info("init: logging memory");
