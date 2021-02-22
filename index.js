@@ -52,6 +52,13 @@ async function init() {
             "--disable-sync",
             "--ignore-certificate-errors",
             "--lang=en-US,en;q=0.9",
+            // https://stackoverflow.com/a/58589026/1477586
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process', // <- this one doesn't works in Windows
+            '--disable-gpu',
         ],
         defaultViewport: {width:1366, height:768},
     });
@@ -102,7 +109,7 @@ app.get("/fetch", async (inbound_request, res) => {
             });
             
             if (inbound_request.query.proxy) {
-
+                
                 logger.info(`${inbound_request.query.url}: proxying request for ${request.url()} to ${inbound_request.query.proxy}`);
                 
                 try {
@@ -193,43 +200,43 @@ app.get("/fetch", async (inbound_request, res) => {
             payload.body = body.toString();
             res.status(200);
             res.set("content-type", "text/json");
-    } catch (e) {
+        } catch (e) {
             res.status(500);
             payload.error = e.toString();
-    } finally {
-        res.json(payload); // payload.error is non-null if catch
-        res.end();
-        if (!payload.error) {
-            logger.info(`${inbound_request.query.url}: successful page visit: ${payload.status_code} - ${payload.status_text}`);
-        } else {
-            logger.info(`${inbound_request.query.url}: unsuccessful page visit: ${payload.status_code} - ${payload.status_text}: ${payload.error}`);
+        } finally {
+            res.json(payload); // payload.error is non-null if catch
+            res.end();
+            if (!payload.error) {
+                logger.info(`${inbound_request.query.url}: successful page visit: ${payload.status_code} - ${payload.status_text}`);
+            } else {
+                logger.info(`${inbound_request.query.url}: unsuccessful page visit: ${payload.status_code} - ${payload.status_text}: ${payload.error}`);
+            }
+            
+            // TODO: remove, TESTING
+            if (is_log_memory) {
+                logger.info(`${indbound_request_query.url}: processed ${(memory_consumed >> 20)} MiB (${memory_consumed} bytes) so far`);
+            }
+            try {
+                await page.close()
+            } catch (e) {
+                logger.error(`${inbound_request.query.url}: failed page close: ${e}`);
+            }
         }
-        
+    });
+    
+    app.listen(8000, async () => {
+        await init(); // initialize the browser
         // TODO: remove, TESTING
         if (is_log_memory) {
-            logger.info(`${indbound_request_query.url}: processed ${(memory_consumed >> 20)} MiB (${memory_consumed} bytes) so far`);
+            logger.info("init: logging memory");
+        } else {
+            logger.info("init: not logging memory");
         }
-        try {
-            await page.close()
-        } catch (e) {
-            logger.error(`${inbound_request.query.url}: failed page close: ${e}`);
+        
+        logger.info(`init: listening on port 8000 (PID: ${process.pid})`);
+        
+        // Here we send the ready signal to PM2
+        if (process.send) {
+            process.send("ready");
         }
-    }
-});
-    
-app.listen(8000, async () => {
-    await init(); // initialize the browser
-    // TODO: remove, TESTING
-    if (is_log_memory) {
-        logger.info("init: logging memory");
-    } else {
-        logger.info("init: not logging memory");
-    }
-    
-    logger.info(`init: listening on port 8000 (PID: ${process.pid})`);
-    
-    // Here we send the ready signal to PM2
-    if (process.send) {
-        process.send("ready");
-    }
-});
+    });
