@@ -9,6 +9,8 @@ const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 puppeteer.use(StealthPlugin());
 // HTTP Proxy Agent support
 const pageProxy = require("puppeteer-page-proxy");
+// Parsing
+var url = require('url');
 // Intercept and manually execute all (non-proxied) requests
 const got = require("got");
 // Handle a special case related to https://github.com/puppeteer/puppeteer/issues/6913
@@ -44,13 +46,7 @@ if (process.argv.length > 2) {
     memory_consumed = 0; // initialize
 }
 
-app.get("/health", (_, res) => {
-    res.status(200);
-    res.end();
-})
-
-app.get("/fetch", async (inbound_request, res) => {
-    logger.info(`${inbound_request.query.url}: page visit request received`);
+async function tryURL(url, res, return_cookies=false, proxy="") {
     // initialize "globals"
     let page;
     // JSON for the response
@@ -58,12 +54,12 @@ app.get("/fetch", async (inbound_request, res) => {
         body: "",
         status_code: -1,
         status_text: "",
-        requested_url: inbound_request.query.url,
+        requested_url: url,
         resolved_url: "",
         error:  "",
     };
     // Cookies wanted?
-    if (inbound_request.query.cookies === "true") {
+    if (return_cookies === "true") {
         payload.cookies = "";
     }
     
@@ -91,7 +87,7 @@ app.get("/fetch", async (inbound_request, res) => {
             defaultViewport: {width:1366, height:768},
         });
     } catch (e) {
-        logger.error(`${inbound_request.query.url}: browser failed to start: ${e}`); 
+        logger.error(`${url}: browser failed to start: ${e}`); 
         return
     }
     
@@ -105,19 +101,19 @@ app.get("/fetch", async (inbound_request, res) => {
                 request.abort();
                 return;
             }
-            logger.info(`${inbound_request.query.url}: executing ${request.method()} request to ${request.url()}, ${request.postData()}`);
+            logger.info(`${url}: executing ${request.method()} request to ${request.url()}, ${request.postData()}`);
             
-            if (inbound_request.query.proxy) {
+            if (proxy) {
                 
-                logger.info(`${inbound_request.query.url}: proxying request for ${request.url()} to ${inbound_request.query.proxy}`);
+                logger.info(`${url}: proxying request for ${request.url()} to ${proxy}`);
                 
                 try {
-                    await pageProxy(request, inbound_request.query.proxy);
+                    await pageProxy(request, proxy);
                 } catch (err) {
-                    if (request.url() !== inbound_request.query.url) {
-                        logger.warn(`${inbound_request.query.url}: auxiliary request to ${request.url()} failed: ${err}`);
+                    if (request.url() !== url) {
+                        logger.warn(`${url}: auxiliary request to ${request.url()} failed: ${err}`);
                     } else {
-                        logger.error(`${inbound_request.query.url}: request failed: ${err}`); 
+                        logger.error(`${url}: request failed: ${err}`); 
                     }
                     request.abort();
                 }
@@ -146,16 +142,16 @@ app.get("/fetch", async (inbound_request, res) => {
             
             try {
                 response = await got(request.url(), options); 
-                if (request.url() !== inbound_request.query.url) {
-                    logger.debug(`${inbound_request.query.url}: auxiliary request to ${request.url()} succeeded`);
+                if (request.url() !== url) {
+                    logger.debug(`${url}: auxiliary request to ${request.url()} succeeded`);
                 } else {
-                    logger.debug(`${inbound_request.query.url}: request succeeded`); 
+                    logger.debug(`${url}: request succeeded`); 
                 }            
             } catch (err) {
-                if (request.url() !== inbound_request.query.url) {
-                    logger.warn(`${inbound_request.query.url}: auxiliary request to ${request.url()} failed: ${err}`);
+                if (request.url() !== url) {
+                    logger.warn(`${url}: auxiliary request to ${request.url()} failed: ${err}`);
                 } else {
-                    logger.error(`${inbound_request.query.url}: request failed: ${err}`); 
+                    logger.error(`${url}: request failed: ${err}`); 
                 }
                 request.abort();
                 return
@@ -168,7 +164,7 @@ app.get("/fetch", async (inbound_request, res) => {
                 // [JRR] https://stackoverflow.com/questions/11301438/return-index-of-greatest-value-in-an-array
                 const closest = ds.indexOf(Math.min(...ds))
                 const n_code = parseInt(Object.keys(IANACodes)[closest.toString()])
-                logger.info(`${inbound_request.query.url}: replacing incompatible code ${code} for ${request.url()} with ${n_code}`)
+                logger.info(`${url}: replacing incompatible code ${code} for ${request.url()} with ${n_code}`)
                 code = n_code
             }
             
@@ -181,7 +177,7 @@ app.get("/fetch", async (inbound_request, res) => {
             
         })
         
-        let response = await page.goto(inbound_request.query.url,
+        let response = await page.goto(url,
             {
                 timeout: 1 * 60 * 1000, // 10m
                 waitUntil: [
@@ -199,10 +195,10 @@ app.get("/fetch", async (inbound_request, res) => {
             
             // 200-like status
             if (!response?.ok()) {
-                logger.warn(`${inbound_request.query.url}: unhealthy response => status: ${response?.status()}, response: ${response?.statusText()}`);
+                logger.warn(`${url}: unhealthy response => status: ${response?.status()}, response: ${response?.statusText()}`);
             }
             
-            if (inbound_request.query.cookies === "true") {
+            if (return_cookies) {
                 payload.cookies = await page.cookies();
             }
             
@@ -222,9 +218,9 @@ app.get("/fetch", async (inbound_request, res) => {
             res.json(payload); // payload.error is non-null if catch
             res.end();
             if (!payload.error) {
-                logger.info(`${inbound_request.query.url}: successful page visit: ${payload.status_code} - ${payload.status_text}`);
+                logger.info(`${url}: successful page visit: ${payload.status_code} - ${payload.status_text}`);
             } else {
-                logger.info(`${inbound_request.query.url}: unsuccessful page visit: ${payload.status_code} - ${payload.status_text}: ${payload.error}`);
+                logger.info(`${url}: unsuccessful page visit: ${payload.status_code} - ${payload.status_text}: ${payload.error}`);
             }
             
             // TODO: remove, TESTING
@@ -234,8 +230,44 @@ app.get("/fetch", async (inbound_request, res) => {
             try {
                 await browser.close()
             } catch (e) {
-                logger.error(`${inbound_request.query.url}: failed page close: ${e}`);
+                logger.error(`${url}: failed page close: ${e}`);
             }
+        }
+    }
+    
+    app.get("/health", (_, res) => {
+        res.status(200);
+        res.end();
+    })
+    
+    app.get("/fetch", async (req, res) => {
+        logger.info(`${req.query.url}: page visit request received`);
+        const url = req.query.url;
+        const no_proto = url.slice(0,5) !== "http";
+        const use_cookies = req.query.cookies;
+        const proxy = req.query.proxy;
+        if (no_proto) {
+            logger.warn(`${url}: no protocol provided`);
+            const protos = ["http:", "https:"]
+            for (let i in protos) {
+                const proto = protos[i];
+                // u.protocol = proto;
+                const u = `${proto}//${url}`
+                logger.info(`${url}: trying ${u}`)
+                try {
+                    await tryURL(u, res, use_cookies, proxy);
+                    return
+                } catch (e) {
+                    logger.error(`${url}: failed ${u.toString()}: ${e}`)
+                }
+            }
+        }
+        logger.info(`${url}: trying`)
+        try {
+            await tryURL(url, res, use_cookies, proxy);
+            return
+        } catch (e) {
+            logger.error(`${url}: failed: ${e}`)
         }
     });
     
