@@ -105,6 +105,7 @@ app.get("/fetch", async (inbound_request, res) => {
                 request.abort();
                 return;
             }
+            logger.info(`${inbound_request.query.url}: executing ${request.method()} request to ${request.url()}, ${request.postData()}`);
             
             if (inbound_request.query.proxy) {
                 
@@ -132,7 +133,7 @@ app.get("/fetch", async (inbound_request, res) => {
                 throwHttpErrors: false,
                 ignoreInvalidCookies: true,
                 followRedirect: false,
-                timeout: 1*45*1000, // 45 second initial timeout
+                timeout: 1*10*1000, // 45 second initial timeout
                 retry: 1,
                 https: {
                     rejectUnauthorized: false,
@@ -142,6 +143,11 @@ app.get("/fetch", async (inbound_request, res) => {
             
             try {
                 response = await got(request.url(), options); 
+                if (request.url() !== inbound_request.query.url) {
+                    logger.debug(`${inbound_request.query.url}: auxiliary request to ${request.url()} succeeded`);
+                } else {
+                    logger.debug(`${inbound_request.query.url}: request succeeded`); 
+                }            
             } catch (err) {
                 if (request.url() !== inbound_request.query.url) {
                     logger.warn(`${inbound_request.query.url}: auxiliary request to ${request.url()} failed: ${err}`);
@@ -174,8 +180,13 @@ app.get("/fetch", async (inbound_request, res) => {
         
         let response = await page.goto(inbound_request.query.url,
             {
-                timeout: 10 * 60 * 1000, // 10m
-                waitUntil: ["load", "domcontentloaded", "networkidle0", "networkidle2",],
+                timeout: 1 * 60 * 1000, // 10m
+                waitUntil: [
+                    "domcontentloaded",
+                    // "load", 
+                    // "networkidle0", 
+                    // "networkidle2",
+                ],
             });
             
             // response
