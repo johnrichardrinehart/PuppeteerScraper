@@ -44,6 +44,11 @@ if (process.argv.length > 2) {
     memory_consumed = 0; // initialize
 }
 
+app.get("/health", (_, res) => {
+    res.status(200);
+    res.end();
+})
+
 app.get("/fetch", async (inbound_request, res) => {
     logger.info(`${inbound_request.query.url}: page visit request received`);
     // initialize "globals"
