@@ -127,7 +127,10 @@ app.get("/fetch", async (inbound_request, res) => {
             const options = {
                 method: request.method(),
                 body: request.postData(),
-                headers: request.headers(),
+                headers: {
+                    ...request.headers(),
+                    "accept":"*/*", // needed for some servers
+                },
                 responseType: "buffer",
                 maxRedirects: 15,
                 throwHttpErrors: false,
@@ -210,6 +213,7 @@ app.get("/fetch", async (inbound_request, res) => {
             }
             
             payload.body = body.toString();
+            console.log("body is: ", payload.body);
             res.status(200);
             res.set("content-type", "text/json");
         } catch (e) {
