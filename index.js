@@ -134,6 +134,9 @@ app.get("/fetch", async (inbound_request, res) => {
                 followRedirect: false,
                 timeout: 1*45*1000, // 45 second initial timeout
                 retry: 1,
+                https: {
+                    rejectUnauthorized: false,
+                }
             };
             let response
             
