@@ -213,7 +213,6 @@ app.get("/fetch", async (inbound_request, res) => {
             }
             
             payload.body = body.toString();
-            console.log("body is: ", payload.body);
             res.status(200);
             res.set("content-type", "text/json");
         } catch (e) {
