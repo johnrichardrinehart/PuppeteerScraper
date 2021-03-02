@@ -62,6 +62,7 @@ func main() {
 	n := flag.Int("n", 10, "number of URLs to scrape - 0 scrapes all")
 	cookies := flag.Bool("c", false, "get cookies?")
 	proxy := flag.String("p", "", "proxy address")
+	d :=  flag.Duration("d", 5*time.Second, "period delay between concurrent URL requests")
 	flag.Parse()
 
 	f, err := os.Open(*fn)
@@ -96,7 +97,7 @@ func main() {
 		}
 
 		wg.Add(1)
-		time.Sleep(10 * time.Second)
+		time.Sleep(*d)
 		go func() {
 			defer wg.Done()
 			u, err := makeURL(*scraper, *proxy, url, *cookies)

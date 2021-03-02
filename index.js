@@ -106,7 +106,7 @@ async function tryURL(url, res, return_cookies=false, proxy="") {
                 request.abort();
                 return;
             }
-            logger.info(`${url}: executing ${request.method()} request to ${request.url()}, ${request.postData()}`);
+            logger.debug(`${url}: executing ${request.method()} request to ${request.url()} ${request.postData()?", post data: , " + request.postData():""}`);
             
             if (proxy) {
                 
@@ -137,8 +137,8 @@ async function tryURL(url, res, return_cookies=false, proxy="") {
                 throwHttpErrors: false,
                 ignoreInvalidCookies: true,
                 followRedirect: false,
-                timeout: 1*10*1000, // 45 second initial timeout
-                retry: 1,
+                timeout: 1*5*1000, // 45 second initial timeout
+                retry: 3,
                 https: {
                     rejectUnauthorized: false,
                 }
@@ -233,7 +233,7 @@ async function tryURL(url, res, return_cookies=false, proxy="") {
                 logger.info(`${indbound_request_query.url}: processed ${(memory_consumed >> 20)} MiB (${memory_consumed} bytes) so far`);
             }
             try {
-                await browser.close()
+                await page.close()
             } catch (e) {
                 logger.error(`${url}: failed page close: ${e}`);
             }
@@ -248,7 +248,7 @@ async function tryURL(url, res, return_cookies=false, proxy="") {
     app.get("/fetch", async (req, res) => {
         logger.info(`${req.query.url}: page visit request received`);
         const url = req.query.url;
-        const no_proto = url.slice(0,5) !== "http";
+        const no_proto = url.slice(0,4) !== "http";
         const use_cookies = req.query.cookies;
         const proxy = req.query.proxy;
         if (no_proto) {
