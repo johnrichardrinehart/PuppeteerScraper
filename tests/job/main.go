@@ -17,7 +17,7 @@ import (
 )
 
 var netClient = &http.Client{
-  Timeout: time.Second * 120,
+	Timeout: 5 * time.Minute,
 }
 
 type result struct {
@@ -60,9 +60,10 @@ func main() {
 	scraper := flag.String("s", "http://localhost:8000", "address of the scraper")
 	fn := flag.String("i", "url.txt", "input file (urls, whitespace-delimited")
 	n := flag.Int("n", 10, "number of URLs to scrape - 0 scrapes all")
+	N := flag.Int("N", 5, "number of workers")
 	cookies := flag.Bool("c", false, "get cookies?")
 	proxy := flag.String("p", "", "proxy address")
-	d :=  flag.Duration("d", 5*time.Second, "period delay between concurrent URL requests")
+	// d := flag.Duration("d", 5*time.Second, "period delay between concurrent URL requests")
 	flag.Parse()
 
 	f, err := os.Open(*fn)
@@ -70,15 +71,18 @@ func main() {
 		log.Fatalf("failed to open URL list: %s", *fn)
 	}
 	s := bufio.NewScanner(f)
-	var cnt int
 
-	chResult := make(chan result)
+	chURLs := make(chan string)
+	chResults := make(chan result)
 	chDone := make(chan bool)
+
 	var num int
+
+	// DB goroutine
 	go func() {
-		for r := range chResult {
+		for r := range chResults {
 			num++
-			log.Printf("Result %d (%s) completed: %s", num, r.RequestedURL, r.Status)
+			log.Printf("completed result %d (%s): Response Status: %s, Error: %s", num, r.RequestedURL, r.Status, r.Error)
 			if _, err := qryInsertReslt.Exec(r.RequestedURL, r.Body, r.Error, r.Cookies, r.StatusCode, r.Status, r.ResolvedURL, r.duration); err != nil {
 				log.Printf("failed to insert result for %s: %s", r.RequestedURL, err)
 			}
@@ -88,37 +92,56 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	for s.Scan() {
-		url := s.Text()
-
-		cnt++
-		if *n != 0 && cnt > *n {
-			break
+	for i := 0; i < *N; i++ {
+		w := worker{
+			scraper: *scraper,
+			proxy:   *proxy,
+			cookies: *cookies,
 		}
-
 		wg.Add(1)
-		time.Sleep(*d)
-		go func() {
-			defer wg.Done()
-			u, err := makeURL(*scraper, *proxy, url, *cookies)
-			if err != nil {
-				log.Printf("could not make a URL for %s: %s", url, err)
-			}
-			start := time.Now()
-			r, err := getResult(u)
-			if err != nil {
-				log.Printf("failed to get result for %s: %s", url, err)
-				return
-			}
-			duration := time.Now().Sub(start)
-			r.duration = duration.Milliseconds()
-			chResult <- *r
-		}()
+		go w.work(chURLs, chResults, &wg)
 	}
+
+	log.Printf("workers spun up")
+
+	for cnt, more := 0, s.Scan(); cnt < *n && more; cnt, more = cnt+1, s.Scan() {
+		url := s.Text()
+		log.Printf("started result %d (%s)", cnt, url)
+		chURLs <- url
+	}
+	log.Printf("all done sending URLs to workers")
+	close(chURLs)
 	wg.Wait()
-	close(chResult)
-	<-chDone
+	close(chResults) // signal the DB goroutine to exit
+	<-chDone         // closed by the DB goroutine
+
 	log.Printf("done")
+}
+
+type worker struct {
+	scraper string
+	proxy   string
+	cookies bool
+}
+
+func (w *worker) work(urls <-chan string, results chan<- result, wg *sync.WaitGroup) {
+	defer wg.Done()
+	for url := range urls {
+		u, err := makeURL(w.scraper, w.proxy, url, w.cookies)
+		if err != nil {
+			log.Printf("could not make a URL for %s: %s", url, err)
+		}
+		start := time.Now()
+		r, err := getResult(u)
+		if err != nil {
+			log.Printf("failed to get result for %s: %s", url, err)
+			return
+		}
+		duration := time.Now().Sub(start)
+		r.duration = duration.Milliseconds()
+		results <- *r
+	}
+
 }
 
 func makeURL(scraper string, proxy string, urlToFetch string, isGetCookies bool) (*url.URL, error) {
@@ -137,7 +160,7 @@ func getResult(u *url.URL) (*result, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close();
+	defer resp.Body.Close()
 	return responseToResult(resp)
 }
 
