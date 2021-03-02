@@ -46,6 +46,38 @@ if (process.argv.length > 2) {
     memory_consumed = 0; // initialize
 }
 
+
+// Made non-null by init()
+let browser;
+
+async function init() {
+    try {
+        browser = await puppeteer.connect({
+            browserWSEndpoint: `ws://localhost:3000`,
+            ignoreHTTPSErrors: true,
+            // args: [
+            //     "--no-sandbox",
+            //     "--disable-setuid-sandbox",
+            //     "--disable-sync",
+            //     "--ignore-certificate-errors",
+            //     "--lang=en-US,en;q=0.9",
+            //     // https://stackoverflow.com/a/58589026/1477586
+            //     '--disable-dev-shm-usage',
+            //     '--disable-accelerated-2d-canvas',
+            //     '--no-first-run',
+            //     '--no-zygote',
+            //     '--single-process', // <- this one doesn't works in Windows
+            //     '--disable-gpu',
+            // ],
+            // defaultViewport: {width:1366, height:768},
+        });
+    }
+    catch (e) {
+        logger.error(`browser failed to start: ${JSON.stringify(e)}`); 
+        return
+    }
+}
+
 async function tryURL(url, res, return_cookies=false, proxy="") {
     // initialize "globals"
     let page;
@@ -57,38 +89,11 @@ async function tryURL(url, res, return_cookies=false, proxy="") {
         requested_url: url,
         resolved_url: "",
         error:  "",
-    };
+    }
+    
     // Cookies wanted?
     if (return_cookies === "true") {
         payload.cookies = "";
-    }
-    
-    let browser
-    
-    try {
-        // https://stackoverflow.com/a/50598625/1477586
-        browser = await puppeteer.launch({
-            headless: true,
-            ignoreHTTPSErrors: true,
-            args: [
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-sync",
-                "--ignore-certificate-errors",
-                "--lang=en-US,en;q=0.9",
-                // https://stackoverflow.com/a/58589026/1477586
-                '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas',
-                '--no-first-run',
-                '--no-zygote',
-                '--single-process', // <- this one doesn't works in Windows
-                '--disable-gpu',
-            ],
-            defaultViewport: {width:1366, height:768},
-        });
-    } catch (e) {
-        logger.error(`${url}: browser failed to start: ${e}`); 
-        return
     }
     
     try {
@@ -272,6 +277,8 @@ async function tryURL(url, res, return_cookies=false, proxy="") {
     });
     
     app.listen(8000, async () => {
+        await init(); // initialize the browser
+        
         // TODO: remove, TESTING
         if (is_log_memory) {
             logger.info("init: logging memory");
