@@ -69,7 +69,8 @@ async function tryURL(url, res, return_cookies=false, proxy="") {
             browserWSEndpoint: "ws://localhost:3000",
         });
         const page = await browser.newPage();
-        // handle all requests manually
+
+        // handle proxy requests manually
         await page.setRequestInterception(true);
         
         page.on("request", async request => {
@@ -95,62 +96,8 @@ async function tryURL(url, res, return_cookies=false, proxy="") {
                 }
                 return;
             }
-            
-            const options = {
-                method: request.method(),
-                body: request.postData(),
-                headers: {
-                    ...request.headers(),
-                    "accept":"*/*", // needed for some servers
-                },
-                responseType: "buffer",
-                maxRedirects: 15,
-                throwHttpErrors: false,
-                ignoreInvalidCookies: true,
-                followRedirect: false,
-                timeout: 1*5*1000, // 45 second initial timeout
-                retry: 3,
-                https: {
-                    rejectUnauthorized: false,
-                }
-            };
-            let response;
-            
-            try {
-                response = await got(request.url(), options); 
-                if (request.url() !== url) {
-                    logger.debug(`${url}: auxiliary request to ${request.url()} succeeded`);
-                } else {
-                    logger.debug(`${url}: request succeeded`); 
-                }            
-            } catch (err) {
-                if (request.url() !== url) {
-                    logger.warn(`${url}: auxiliary request to ${request.url()} failed: ${err}`);
-                } else {
-                    logger.error(`${url}: request failed: ${err}`); 
-                }
-                request.abort();
-                return;
-            }
-            
-            // TODO: Revisit after https://github.com/puppeteer/puppeteer/issues/6913 resolves
-            let code = response.statusCode;
-            if (!(response.statusCode.toString() in IANACodes)) {
-                const ds = Object.keys(IANACodes).map(x=> Math.abs(parseInt(x)-code));
-                // [JRR] https://stackoverflow.com/questions/11301438/return-index-of-greatest-value-in-an-array
-                const closest = ds.indexOf(Math.min(...ds));
-                const n_code = parseInt(Object.keys(IANACodes)[closest.toString()]);
-                logger.info(`${url}: replacing incompatible code ${code} for ${request.url()} with ${n_code}`);
-                code = n_code;
-            }
-            
-            // TODO: Think about how to deal with possible exceptions here in a good way
-            await request.respond({
-                status: code,
-                headers: response.headers,
-                body: response.body,
-            });
-            
+            request.continue();
+            return;  
         });
         
         let response = await page.goto(url,
