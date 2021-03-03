@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -63,6 +64,7 @@ func main() {
 	N := flag.Int("N", 5, "number of workers")
 	cookies := flag.Bool("c", false, "get cookies?")
 	proxy := flag.String("p", "", "proxy address")
+	rdm := flag.Bool("r", false, "random line number per run?")
 	// d := flag.Duration("d", 5*time.Second, "period delay between concurrent URL requests")
 	flag.Parse()
 
@@ -70,7 +72,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to open URL list: %s", *fn)
 	}
-	s := bufio.NewScanner(f)
 
 	chURLs := make(chan string)
 	chResults := make(chan result)
@@ -81,11 +82,15 @@ func main() {
 	// DB goroutine
 	go func() {
 		for r := range chResults {
-			num++
-			log.Printf("completed result %d (%s): Response Status: %s, Error: %s", num, r.RequestedURL, r.Status, r.Error)
 			if _, err := qryInsertReslt.Exec(r.RequestedURL, r.Body, r.Error, r.Cookies, r.StatusCode, r.Status, r.ResolvedURL, r.duration); err != nil {
 				log.Printf("failed to insert result for %s: %s", r.RequestedURL, err)
 			}
+			if r.Error != "" {
+				log.Printf("completed result %d (%s): Response Status: %d, Error: %s", num, r.RequestedURL, r.StatusCode, r.Error)
+			} else {
+				log.Printf("completed result %d (%s): Response Status: %d", num, r.RequestedURL, r.StatusCode)
+			}
+			num++
 		}
 		close(chDone)
 	}()
@@ -104,10 +109,32 @@ func main() {
 
 	log.Printf("workers spun up")
 
-	for cnt, more := 0, s.Scan(); cnt < *n && more; cnt, more = cnt+1, s.Scan() {
-		url := s.Text()
-		log.Printf("started result %d (%s)", cnt, url)
-		chURLs <- url
+	var url = ""
+	s := bufio.NewScanner(f)
+	if *rdm {
+		fi := lineIterator{scanner: s}
+		lineNumbers, err := Sample(*n, &fi)
+		if err != nil {
+			log.Printf("failed to sample %d lines from %s", *n, *fn)
+		} else {
+			var cnt int
+			for _, ln := range lineNumbers {
+				url, _, err := ReadLine(f, ln.(int))
+				if err != nil {
+					log.Printf("failed to read line %d: %s", ln.(int), err)
+					continue
+				}
+				chURLs <- url
+				log.Printf("started result %d (%s)", cnt, url)
+				cnt++
+			}
+		}
+	} else {
+		for cnt, more := 0, s.Scan(); cnt < *n && more; cnt, more = cnt+1, s.Scan() {
+			url = s.Text()
+			chURLs <- url
+			log.Printf("started result %d (%s)", cnt, url)
+		}
 	}
 	log.Printf("all done sending URLs to workers")
 	close(chURLs)
@@ -116,6 +143,35 @@ func main() {
 	<-chDone         // closed by the DB goroutine
 
 	log.Printf("done")
+}
+
+// ReadLine from https://stackoverflow.com/questions/30693421/how-to-read-specific-line-of-file
+func ReadLine(r *os.File, lineNum int) (line string, lastLine int, err error) {
+	r.Seek(0, 0)
+	sc := bufio.NewScanner(r)
+	for sc.Scan() {
+		lastLine++
+		if lastLine == lineNum {
+			return sc.Text(), lastLine, sc.Err()
+		}
+	}
+	return line, lastLine, io.EOF
+}
+
+type lineIterator struct {
+	scanner *bufio.Scanner
+	i       int
+}
+
+func (li *lineIterator) Next() (interface{}, error) {
+	more := li.scanner.Scan()
+	if !more {
+		return nil, io.EOF
+	}
+	old := li.i
+	new := old + 1
+	li.i = new
+	return old, nil
 }
 
 type worker struct {

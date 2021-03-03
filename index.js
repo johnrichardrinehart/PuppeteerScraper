@@ -12,9 +12,9 @@ const pageProxy = require("puppeteer-page-proxy");
 // Parsing
 // var url = require('url');
 // Intercept and manually execute all (non-proxied) requests
-const got = require("got");
+// const got = require("got");
 // Handle a special case related to https://github.com/puppeteer/puppeteer/issues/6913
-const IANACodes = require("./lib/iana.json");
+// const IANACodes = require("./lib/iana.json");
 // Logging
 const winston = require("winston");
 
@@ -105,7 +105,7 @@ async function tryURL(url, res, return_cookies=false, proxy="") {
                 timeout: 10 * 60 * 1000, // 10m
                 waitUntil: [
                     "domcontentloaded",
-                    // "load", 
+                    "load", 
                     // "networkidle0", 
                     // "networkidle2",
                 ],
@@ -128,7 +128,7 @@ async function tryURL(url, res, return_cookies=false, proxy="") {
         let body = await response?.buffer();
         // TODO: remove, TESTING
         if (is_log_memory) {
-            memory_consumed += body.length;
+            memory_consumed += body?.length;
         }
             
         payload.body = body.toString();
