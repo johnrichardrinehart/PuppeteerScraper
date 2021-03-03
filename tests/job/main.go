@@ -18,7 +18,7 @@ import (
 )
 
 var netClient = &http.Client{
-	Timeout: 5 * time.Minute,
+	Timeout: 60 * time.Second,
 }
 
 type result struct {
@@ -74,7 +74,7 @@ func main() {
 	}
 
 	chURLs := make(chan string)
-	chResults := make(chan result)
+	chResults := make(chan *result)
 	chDone := make(chan bool)
 
 	var num int
@@ -82,6 +82,9 @@ func main() {
 	// DB goroutine
 	go func() {
 		for r := range chResults {
+			if r == nil {
+				continue
+			}
 			if _, err := qryInsertReslt.Exec(r.RequestedURL, r.Body, r.Error, r.Cookies, r.StatusCode, r.Status, r.ResolvedURL, r.duration); err != nil {
 				log.Printf("failed to insert result for %s: %s", r.RequestedURL, err)
 			}
@@ -180,7 +183,7 @@ type worker struct {
 	cookies bool
 }
 
-func (w *worker) work(urls <-chan string, results chan<- result, wg *sync.WaitGroup) {
+func (w *worker) work(urls <-chan string, results chan<- *result, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for url := range urls {
 		u, err := makeURL(w.scraper, w.proxy, url, w.cookies)
@@ -191,11 +194,12 @@ func (w *worker) work(urls <-chan string, results chan<- result, wg *sync.WaitGr
 		r, err := getResult(u)
 		if err != nil {
 			log.Printf("failed to get result for %s: %s", url, err)
-			return
 		}
 		duration := time.Now().Sub(start)
-		r.duration = duration.Milliseconds()
-		results <- *r
+		if r != nil {
+			r.duration = duration.Milliseconds()
+		}
+		results <- r
 	}
 
 }
