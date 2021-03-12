@@ -13,16 +13,8 @@ const pageProxy = require("puppeteer-page-proxy");
 const winston = require("winston");
 
 const logger = winston.createLogger({
-    level: "debug",
-    format: winston.format.json(),
     transports: [
-        //
-        // - Write all logs with level `error` and below to `error.log`
-        // - Write all logs with level `info` and below to `combined.log`
-        //
-        new winston.transports.File({ filename: "error.log", level: "error" }),
-        new winston.transports.File({ filename: "combined.log" }),
-        new winston.transports.Console(),
+        new winston.transports.Console({level: "info"}),
     ],
 });
 
@@ -41,7 +33,7 @@ if (process.argv.length > 2) {
     memory_consumed = 0; // initialize
 }
 
-async function tryURL(url, return_cookies = false, proxy = "") {
+async function tryURL(url, wants_cookies = "", proxy = "") {
     // JSON for the response
     let payload = {
         body: "",
@@ -55,7 +47,7 @@ async function tryURL(url, return_cookies = false, proxy = "") {
     let browser;
 
     // Cookies wanted?
-    if (return_cookies === "true") {
+    if (wants_cookies === "true") {
         payload.cookies = "";
     }
 
@@ -64,7 +56,7 @@ async function tryURL(url, return_cookies = false, proxy = "") {
             browserWSEndpoint: "ws://localhost:3000",
         });
         const page = await browser.newPage();
-
+        
         // handle proxy requests manually
         await page.setRequestInterception(true);
 
@@ -94,18 +86,19 @@ async function tryURL(url, return_cookies = false, proxy = "") {
             request.continue();
             return;
         });
-        
-        let response = await page.goto(url,
-            {
-                timeout: 10 * 60 * 1000, // 10m
-                waitUntil: [
-                    "domcontentloaded",
-                    "load",
-                    // "networkidle0", 
-                    // "networkidle2",
-                ],
-            });
 
+    let response = await page.goto(url,
+        {
+            timeout: 10 * 60 * 1000, // 10m
+            waitUntil: [
+                "domcontentloaded",
+                // "load",
+                // "networkidle0", 
+                // "networkidle2",
+            ],
+        });
+
+        logger.info(`response headers are: ${JSON.stringify(response.headers())}`)
         // response
         payload.status_code = response?.status();
         payload.status_text = response?.statusText();
@@ -116,9 +109,11 @@ async function tryURL(url, return_cookies = false, proxy = "") {
             logger.warn(`${url}: unhealthy response => status: ${response?.status()}, response: ${response?.statusText()}`);
         }
 
-        if (return_cookies) {
-            payload.cookies = await page.cookies();
+        if (wants_cookies) {
+            const cookies = await page.cookies(url);
+            payload.cookies = cookies;
         }
+
         let body = await response?.buffer();
         // TODO: remove, TESTING
         if (is_log_memory) {
@@ -163,6 +158,7 @@ app.get("/fetch", async (req, res) => {
     const no_proto = url.slice(0, 4) !== "http";
     const use_cookies = req.query.cookies;
     const proxy = req.query.proxy;
+    logger.debug(`fetching with: ${req.query.url}, ${req.query.cookies}, ${req.query.proxy}`)
     res.set("content-type", "application/json");
     if (no_proto) {
         logger.warn(`${url}: no protocol provided`);
@@ -172,7 +168,7 @@ app.get("/fetch", async (req, res) => {
             const u = `${proto}//${url}`;
             logger.debug(`${url}: trying ${u}`);
             try {
-                const payload = await tryURL(u, res, use_cookies, proxy);
+                const payload = await tryURL(u, use_cookies, proxy);
                 res.json(payload);
                 return;
             } catch (e) {
@@ -182,7 +178,7 @@ app.get("/fetch", async (req, res) => {
     }
     logger.info(`${url}: starting page visit..`);
     try {
-        const payload = await tryURL(url, res, use_cookies, proxy);
+        const payload = await tryURL(url, use_cookies, proxy);
         res.json(payload);
         return;
     } catch (e) {
@@ -197,9 +193,9 @@ app.listen(8000, async () => {
     } else {
         logger.info("init: not logging memory");
     }
-
+    
     logger.info(`init: listening on port 8000 (PID: ${process.pid})`);
-
+    
     // Here we send the ready signal to PM2
     if (process.send) {
         process.send("ready");
