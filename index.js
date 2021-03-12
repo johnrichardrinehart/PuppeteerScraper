@@ -9,17 +9,11 @@ const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 puppeteer.use(StealthPlugin());
 // HTTP Proxy Agent support
 const pageProxy = require("puppeteer-page-proxy");
-// Parsing
-// var url = require('url');
-// Intercept and manually execute all (non-proxied) requests
-// const got = require("got");
-// Handle a special case related to https://github.com/puppeteer/puppeteer/issues/6913
-// const IANACodes = require("./lib/iana.json");
 // Logging
 const winston = require("winston");
 
 const logger = winston.createLogger({
-    level: "info",
+    level: "debug",
     format: winston.format.json(),
     transports: [
         //
@@ -28,6 +22,7 @@ const logger = winston.createLogger({
         //
         new winston.transports.File({ filename: "error.log", level: "error" }),
         new winston.transports.File({ filename: "combined.log" }),
+        new winston.transports.Console(),
     ],
 });
 
@@ -46,7 +41,7 @@ if (process.argv.length > 2) {
     memory_consumed = 0; // initialize
 }
 
-async function tryURL(url, res, return_cookies=false, proxy="") {
+async function tryURL(url, return_cookies = false, proxy = "") {
     // JSON for the response
     let payload = {
         body: "",
@@ -54,16 +49,16 @@ async function tryURL(url, res, return_cookies=false, proxy="") {
         status_text: "",
         requested_url: url,
         resolved_url: "",
-        error:  "",
+        error: "",
     };
 
     let browser;
-    
+
     // Cookies wanted?
     if (return_cookies === "true") {
         payload.cookies = "";
     }
-    
+
     try {
         browser = await puppeteer.connect({
             browserWSEndpoint: "ws://localhost:3000",
@@ -72,32 +67,32 @@ async function tryURL(url, res, return_cookies=false, proxy="") {
 
         // handle proxy requests manually
         await page.setRequestInterception(true);
-        
+
         page.on("request", async request => {
             if (!["document", "script", "xhr", "fetch"].includes(request.resourceType())) {
                 request.abort();
                 return;
             }
-            logger.debug(`${url}: executing ${request.method()} request to ${request.url()} ${request.postData()?", post data: , " + request.postData():""}`);
+
+            logger.debug(`${url}: executing ${request.method()} request to ${request.url()} ${request.postData() ? ", post data: , " + request.postData() : ""}`);
             
             if (proxy) {
-                
                 logger.info(`${url}: proxying request for ${request.url()} to ${proxy}`);
-                
+
                 try {
                     await pageProxy(request, proxy);
                 } catch (err) {
                     if (request.url() !== url) {
                         logger.warn(`${url}: auxiliary request to ${request.url()} failed: ${err}`);
                     } else {
-                        logger.error(`${url}: request failed: ${err}`); 
+                        logger.error(`${url}: request failed: ${err}`);
                     }
                     request.abort();
                 }
                 return;
             }
             request.continue();
-            return;  
+            return;
         });
         
         let response = await page.goto(url,
@@ -105,47 +100,41 @@ async function tryURL(url, res, return_cookies=false, proxy="") {
                 timeout: 10 * 60 * 1000, // 10m
                 waitUntil: [
                     "domcontentloaded",
-                    "load", 
+                    "load",
                     // "networkidle0", 
                     // "networkidle2",
                 ],
             });
-            
+
         // response
         payload.status_code = response?.status();
         payload.status_text = response?.statusText();
         payload.resolved_url = response?.url(); // If there's no response then this is null
-            
+
         // 200-like status
         if (!response?.ok()) {
             logger.warn(`${url}: unhealthy response => status: ${response?.status()}, response: ${response?.statusText()}`);
         }
-            
+
         if (return_cookies) {
             payload.cookies = await page.cookies();
         }
-            
         let body = await response?.buffer();
         // TODO: remove, TESTING
         if (is_log_memory) {
             memory_consumed += body?.length;
         }
-            
+
         payload.body = body.toString();
-        res.status(200);
-        res.set("content-type", "text/json");
     } catch (e) {
-        res.status(500);
+        payload.status_code = -1;
         payload.error = e.toString();
     } finally {
-        res.json(payload); // payload.error is non-null if catch
-        res.end();
         if (!payload.error) {
             logger.info(`${url}: successful page visit: ${payload.status_code} - ${payload.status_text}`);
         } else {
             logger.info(`${url}: unsuccessful page visit: ${payload.status_code} - ${payload.status_text}: ${JSON.stringify(payload.error)}`);
         }
-            
         // TODO: remove, TESTING
         if (is_log_memory) {
             logger.info(`${url}: processed ${(memory_consumed >> 20)} MiB (${memory_consumed} bytes) so far`);
@@ -160,56 +149,57 @@ async function tryURL(url, res, return_cookies=false, proxy="") {
             logger.error(`${url}: failed page close: ${e}`);
         }
     }
+    return payload
 }
-    
+
 app.get("/health", (_, res) => {
     res.status(200);
     res.end();
 });
-    
+
 app.get("/fetch", async (req, res) => {
     logger.info(`${req.query.url}: page visit request received`);
     const url = req.query.url;
-    const no_proto = url.slice(0,4) !== "http";
+    const no_proto = url.slice(0, 4) !== "http";
     const use_cookies = req.query.cookies;
     const proxy = req.query.proxy;
+    res.set("content-type", "application/json");
     if (no_proto) {
         logger.warn(`${url}: no protocol provided`);
         const protos = ["http:", "https:"];
         for (let i in protos) {
             const proto = protos[i];
-            // u.protocol = proto;
             const u = `${proto}//${url}`;
-            logger.info(`${url}: trying ${u}`);
+            logger.debug(`${url}: trying ${u}`);
             try {
-                await tryURL(u, res, use_cookies, proxy);
+                const payload = await tryURL(u, res, use_cookies, proxy);
+                res.json(payload);
                 return;
             } catch (e) {
                 logger.error(`${url}: failed ${u.toString()}: ${e}`);
             }
         }
     }
-    logger.info(`${url}: trying`);
+    logger.info(`${url}: starting page visit..`);
     try {
-        await tryURL(url, res, use_cookies, proxy);
+        const payload = await tryURL(url, res, use_cookies, proxy);
+        res.json(payload);
         return;
     } catch (e) {
         logger.error(`${url}: failed: ${e}`);
     }
 });
-    
+
 app.listen(8000, async () => {
-    // await init(); // initialize the browser
-        
     // TODO: remove, TESTING
     if (is_log_memory) {
         logger.info("init: logging memory");
     } else {
         logger.info("init: not logging memory");
     }
-        
+
     logger.info(`init: listening on port 8000 (PID: ${process.pid})`);
-        
+
     // Here we send the ready signal to PM2
     if (process.send) {
         process.send("ready");
