@@ -14,15 +14,9 @@ const winston = require("winston");
 
 const logger = winston.createLogger({
     transports: [
-        new winston.transports.Console({level: "info"}),
+        new winston.transports.Console({level: "debug"}),
     ],
 });
-
-if (process.env.NODE_ENV !== "production") {
-    logger.add(new winston.transports.Console({
-        format: winston.format.simple(),
-    }));
-}
 
 // TODO: remove, TESTING
 let memory_consumed;
@@ -61,10 +55,13 @@ async function tryURL(url, wants_cookies = "", proxy = "") {
         await page.setRequestInterception(true);
 
         page.on("request", async request => {
-            if (!["document", "script", "xhr", "fetch"].includes(request.resourceType())) {
+            // The below array seeks to filter out unnecessary requests in order to save on bandwidth.
+            // IMPORTANT: Some pages require stylsheets to load in order to detected bot behavior. Make sure to allow stylesheet loading!
+            if (!["document", "script", "xhr", "stylesheet"].includes(request.resourceType())) {
                 request.abort();
                 return;
             }
+            // document, stylesheet, image, media, font, script, texttrack, xhr, fetch, eventsource, websocket, manifest, other
 
             logger.debug(`${url}: executing ${request.method()} request to ${request.url()} ${request.postData() ? ", post data: , " + request.postData() : ""}`);
             
@@ -92,13 +89,12 @@ async function tryURL(url, wants_cookies = "", proxy = "") {
             timeout: 10 * 60 * 1000, // 10m
             waitUntil: [
                 "domcontentloaded",
-                // "load",
+                "load",
                 // "networkidle0", 
                 // "networkidle2",
             ],
         });
 
-        logger.info(`response headers are: ${JSON.stringify(response.headers())}`)
         // response
         payload.status_code = response?.status();
         payload.status_text = response?.statusText();
@@ -111,6 +107,7 @@ async function tryURL(url, wants_cookies = "", proxy = "") {
 
         if (wants_cookies) {
             const cookies = await page.cookies(url);
+            logger.info(`cookies requested: ${cookies}`);
             payload.cookies = cookies;
         }
 
@@ -186,7 +183,7 @@ app.get("/fetch", async (req, res) => {
     }
 });
 
-app.listen(8000, async () => {
+const srv = app.listen(8000, async () => {
     // TODO: remove, TESTING
     if (is_log_memory) {
         logger.info("init: logging memory");
@@ -195,9 +192,18 @@ app.listen(8000, async () => {
     }
     
     logger.info(`init: listening on port 8000 (PID: ${process.pid})`);
-    
-    // Here we send the ready signal to PM2
-    if (process.send) {
-        process.send("ready");
-    }
+});
+
+process.on('SIGINT', function() {
+    logger.info('SIGINT received... Stopping HTTP server');
+    srv.close(() => {
+        console.log('HTTP server stopped.');
+    });
+});
+
+process.on('SIGTERM', function() {
+    logger.info('SIGTERM received... Stopping HTTP server');
+    srv.close(() => {
+        console.log('HTTP server stopped.');
+    });
 });

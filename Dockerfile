@@ -12,6 +12,5 @@ RUN yarn set version berry
 RUN yarn install
 
 USER blessuser
-ENTRYPOINT [ "/usr/bin/dumb-init", "--"]
 
 CMD ["./start.sh"]
